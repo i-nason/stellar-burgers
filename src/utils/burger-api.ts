@@ -32,6 +32,7 @@ export const refreshToken = (): Promise<TRefreshResponse> =>
       }
       localStorage.setItem('refreshToken', refreshData.refreshToken);
       setCookie('accessToken', refreshData.accessToken);
+      localStorage.setItem('accessToken', refreshData.accessToken);
       return refreshData;
     });
 
@@ -87,7 +88,7 @@ export const getFeedsApi = () =>
       return Promise.reject(data);
     });
 
-export const getOrdersApi = () =>
+export const getOrdersApi = (): Promise<TOrder[]> =>
   fetchWithRefresh<TFeedsResponse>(`${URL}/orders`, {
     method: 'GET',
     headers: {
@@ -95,8 +96,8 @@ export const getOrdersApi = () =>
       authorization: getCookie('accessToken')
     } as HeadersInit
   }).then((data) => {
-    if (data?.success) return data.orders;
-    return Promise.reject(data);
+    if (data?.success && Array.isArray(data.orders)) return data.orders;
+    return [];
   });
 
 type TNewOrderResponse = TServerResponse<{
