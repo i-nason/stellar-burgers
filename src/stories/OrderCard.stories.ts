@@ -74,7 +74,7 @@ export const DefaultOrderCard: Story = {
     },
     maxIngredients: 5,
     locationState: {
-      background: {
+      backgroundLocation: {
         hash: '',
         key: 'eitkep27',
         pathname: '/',

@@ -1,17 +1,49 @@
-import { FC } from 'react';
+import { FC, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useSelector } from '../../services/store';
+import { useSelector, useDispatch } from '../../services/store';
 import { Preloader } from '../ui/preloader';
 import { IngredientDetailsUI } from '../ui/ingredient-details';
+import { fetchIngredients } from '../../services/slices/ingredientsSlice';
+import styles from '../app/app.module.css';
 
-export const IngredientDetails: FC = () => {
+interface IngredientDetailsProps {
+  isModal?: boolean;
+}
+
+export const IngredientDetails: FC<IngredientDetailsProps> = ({ isModal }) => {
   const { id } = useParams();
-  const { ingredients } = useSelector((state) => state.ingredients);
+  const dispatch = useDispatch();
+  const { ingredients, isLoading, error } = useSelector(
+    (state) => state.ingredients
+  );
+
+  useEffect(() => {
+    if (!ingredients.length) {
+      dispatch(fetchIngredients());
+    }
+  }, [dispatch, ingredients.length]);
+
   const ingredientData = ingredients.find((item) => item._id === id) || null;
 
-  if (!ingredientData) {
+  if (isLoading || !ingredients.length) {
     return <Preloader />;
   }
 
-  return <IngredientDetailsUI ingredientData={ingredientData} />;
+  if (error) {
+    return <div style={{ color: 'red' }}>{error}</div>;
+  }
+
+  if (!ingredientData) {
+    return <div style={{ color: 'red' }}>Ингредиент не найден</div>;
+  }
+
+  if (isModal) {
+    return <IngredientDetailsUI ingredientData={ingredientData} />;
+  }
+
+  return (
+    <div className={styles.detailPageWrap}>
+      <IngredientDetailsUI ingredientData={ingredientData} />
+    </div>
+  );
 };

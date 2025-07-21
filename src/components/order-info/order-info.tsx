@@ -1,16 +1,58 @@
-import { FC, useMemo } from 'react';
+import { FC, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useSelector } from '../../services/store';
+import { useSelector, useDispatch } from '../../services/store';
 import { Preloader } from '../ui/preloader';
 import { OrderInfoUI } from '../ui/order-info';
 import { TIngredient } from '@utils-types';
+import styles from '../app/app.module.css';
+import {
+  fetchFeeds,
+  fetchOrderByNumber
+} from '../../services/slices/feedSlice';
+import { fetchIngredients } from '../../services/slices/ingredientsSlice';
 
-export const OrderInfo: FC = () => {
+interface OrderInfoProps {
+  isModal?: boolean;
+}
+
+export const OrderInfo: FC<OrderInfoProps> = ({ isModal }) => {
   const { number } = useParams();
-  const { orders } = useSelector((state) => state.feed);
+  const dispatch = useDispatch();
+  const {
+    orders,
+    isLoading,
+    error,
+    currentOrder,
+    currentOrderLoading,
+    currentOrderError
+  } = useSelector((state) => state.feed);
   const { ingredients } = useSelector((state) => state.ingredients);
+
+  // Загружаем ленту заказов, если пусто
+  useEffect(() => {
+    if (!orders.length) {
+      dispatch(fetchFeeds());
+    }
+  }, [dispatch, orders.length]);
+
+  // Загружаем ингредиенты, если пусто
+  useEffect(() => {
+    if (!ingredients.length) {
+      dispatch(fetchIngredients());
+    }
+  }, [dispatch, ingredients.length]);
+
+  // Если заказа нет в orders, пробуем загрузить по номеру
+  useEffect(() => {
+    if (number && !orders.find((order) => String(order.number) === number)) {
+      dispatch(fetchOrderByNumber(number));
+    }
+  }, [dispatch, number, orders]);
+
   const orderData =
-    orders.find((order) => String(order.number) === number) || null;
+    orders.find((order) => String(order.number) === number) ||
+    currentOrder ||
+    null;
 
   const orderInfo = useMemo(() => {
     if (!orderData || !ingredients.length) return null;
@@ -53,9 +95,30 @@ export const OrderInfo: FC = () => {
     };
   }, [orderData, ingredients]);
 
-  if (!orderInfo) {
+  if (
+    isLoading ||
+    currentOrderLoading ||
+    (!orders.length && !currentOrder) ||
+    !ingredients.length
+  ) {
     return <Preloader />;
   }
 
-  return <OrderInfoUI orderInfo={orderInfo} />;
+  if (error || currentOrderError) {
+    return <div style={{ color: 'red' }}>{error || currentOrderError}</div>;
+  }
+
+  if (!orderInfo) {
+    return <div style={{ color: 'red' }}>Заказ не найден</div>;
+  }
+
+  if (isModal) {
+    return <OrderInfoUI orderInfo={orderInfo} />;
+  }
+
+  return (
+    <div className={styles.detailPageWrap}>
+      <OrderInfoUI orderInfo={orderInfo} />
+    </div>
+  );
 };

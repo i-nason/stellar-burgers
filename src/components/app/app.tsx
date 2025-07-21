@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useDispatch } from '../../services/store';
 import { fetchUser } from '../../services/slices/userSlice';
 
@@ -24,6 +24,8 @@ import styles from './app.module.css';
 const App = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
+  const state = location.state as { backgroundLocation?: Location };
 
   useEffect(() => {
     const accessToken = localStorage.getItem('accessToken');
@@ -36,7 +38,8 @@ const App = () => {
     <div className={styles.app}>
       <AppHeader />
 
-      <Routes>
+      {/* Основные страницы */}
+      <Routes location={state?.backgroundLocation || location}>
         <Route path='/' element={<ConstructorPage />} />
         <Route path='/feed' element={<Feed />} />
         <Route
@@ -87,36 +90,52 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-
-        <Route
-          path='/feed/:number'
-          element={
-            <Modal title='Детали заказа' onClose={() => navigate(-1)}>
-              <OrderInfo />
-            </Modal>
-          }
-        />
-        <Route
-          path='/ingredients/:id'
-          element={
-            <Modal title='Детали ингредиента' onClose={() => navigate(-1)}>
-              <IngredientDetails />
-            </Modal>
-          }
-        />
+        <Route path='/feed/:number' element={<OrderInfo />} />
+        <Route path='/ingredients/:id' element={<IngredientDetails />} />
         <Route
           path='/profile/orders/:number'
           element={
             <ProtectedRoute>
-              <Modal title='Детали заказа' onClose={() => navigate(-1)}>
-                <OrderInfo />
-              </Modal>
+              <OrderInfo />
             </ProtectedRoute>
           }
         />
-
         <Route path='*' element={<NotFound404 />} />
       </Routes>
+
+      {/* Модальные окна поверх background */}
+      {state?.backgroundLocation && (
+        <>
+          <Routes>
+            <Route
+              path='/ingredients/:id'
+              element={
+                <Modal title='Детали ингредиента' onClose={() => navigate(-1)}>
+                  <IngredientDetails isModal />
+                </Modal>
+              }
+            />
+            <Route
+              path='/feed/:number'
+              element={
+                <Modal title='Детали заказа' onClose={() => navigate(-1)}>
+                  <OrderInfo isModal />
+                </Modal>
+              }
+            />
+            <Route
+              path='/profile/orders/:number'
+              element={
+                <ProtectedRoute>
+                  <Modal title='Детали заказа' onClose={() => navigate(-1)}>
+                    <OrderInfo isModal />
+                  </Modal>
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </>
+      )}
     </div>
   );
 };

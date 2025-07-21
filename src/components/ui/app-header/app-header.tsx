@@ -39,7 +39,9 @@ export const AppHeaderUI: FC<TAppHeaderUIPropsExtended> = ({
         </div>
       </div>
       <div className={styles.logo}>
-        <Logo className='' />
+        <div onClick={onConstructorClick} style={{ cursor: 'pointer' }}>
+          <Logo className='' />
+        </div>
       </div>
       <div
         className={styles.link_position_last}
