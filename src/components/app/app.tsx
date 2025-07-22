@@ -2,12 +2,13 @@ import React, { useEffect } from 'react';
 import { useLocation, useNavigate, Routes, Route } from 'react-router-dom';
 import { useDispatch } from '../../services/store';
 import { fetchUser } from '../../services/slices/userSlice';
+import { fetchIngredients } from '../../services/slices/ingredientsSlice';
 
 import { AppHeader } from '../app-header/app-header';
 import { ConstructorPage } from '../../pages/constructor-page';
 import { Feed } from '../../pages/feed';
 import { ForgotPassword } from '../../pages/forgot-password';
-import { Login } from '../../pages/login';
+import Login from '../../pages/login';
 import { NotFound404 } from '../../pages/not-fount-404';
 import { Profile } from '../../pages/profile';
 import { ProfileOrders } from '../../pages/profile-orders';
@@ -28,6 +29,7 @@ const App = () => {
   const state = location.state as { backgroundLocation?: Location };
 
   useEffect(() => {
+    dispatch(fetchIngredients());
     const accessToken = localStorage.getItem('accessToken');
     if (accessToken) {
       dispatch(fetchUser());

@@ -17,12 +17,6 @@ export const IngredientDetails: FC<IngredientDetailsProps> = ({ isModal }) => {
     (state) => state.ingredients
   );
 
-  useEffect(() => {
-    if (!ingredients.length) {
-      dispatch(fetchIngredients());
-    }
-  }, [dispatch, ingredients.length]);
-
   const ingredientData = ingredients.find((item) => item._id === id) || null;
 
   if (isLoading || !ingredients.length) {

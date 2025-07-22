@@ -35,13 +35,6 @@ export const OrderInfo: FC<OrderInfoProps> = ({ isModal }) => {
     }
   }, [dispatch, orders.length]);
 
-  // Загружаем ингредиенты, если пусто
-  useEffect(() => {
-    if (!ingredients.length) {
-      dispatch(fetchIngredients());
-    }
-  }, [dispatch, ingredients.length]);
-
   // Если заказа нет в orders, пробуем загрузить по номеру
   useEffect(() => {
     if (number && !orders.find((order) => String(order.number) === number)) {

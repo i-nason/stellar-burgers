@@ -13,10 +13,6 @@ export const BurgerIngredients: FC = () => {
     (state) => state.ingredients
   );
 
-  useEffect(() => {
-    dispatch(fetchIngredients());
-  }, [dispatch]);
-
   // Группируем ингредиенты по типу
   const buns: TIngredient[] = ingredients.filter((item) => item.type === 'bun');
   const mains: TIngredient[] = ingredients.filter(
