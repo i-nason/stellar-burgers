@@ -5,6 +5,7 @@ import { loginUserApi } from '../../utils/burger-api';
 import { fetchUser } from '../../services/slices/userSlice';
 import { setCookie } from '../../utils/cookie';
 import { useForm } from '../../hooks/useForm';
+import { LoginUI } from '../../components/ui/pages/login/login';
 
 const Login: React.FC = () => {
   const dispatch = useDispatch();
@@ -31,24 +32,24 @@ const Login: React.FC = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type='email'
-        name='email'
-        value={values.email}
-        onChange={handleChange}
-        placeholder='E-mail'
-      />
-      <input
-        type='password'
-        name='password'
-        value={values.password}
-        onChange={handleChange}
-        placeholder='Пароль'
-      />
-      <button type='submit'>Войти</button>
-      {error && <div>{error}</div>}
-    </form>
+    <LoginUI
+      email={values.email}
+      setEmail={(value) =>
+        setValues((prev) => ({
+          ...prev,
+          email: typeof value === 'function' ? value(prev.email) : value
+        }))
+      }
+      password={values.password}
+      setPassword={(value) =>
+        setValues((prev) => ({
+          ...prev,
+          password: typeof value === 'function' ? value(prev.password) : value
+        }))
+      }
+      errorText={error || ''}
+      handleSubmit={handleSubmit}
+    />
   );
 };
 
