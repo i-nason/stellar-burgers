@@ -1,0 +1,8 @@
+{
+  "user": {
+    "email": "test@example.com",
+    "name": "Test User"
+  },
+  "accessToken": "Bearer test-access-token",
+  "refreshToken": "test-refresh-token"
+} 

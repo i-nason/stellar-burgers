@@ -37,7 +37,7 @@ const App = () => {
   }, [dispatch]);
 
   return (
-    <div className={styles.app}>
+    <div className={styles.app} data-cy='app'>
       <AppHeader />
 
       {/* Основные страницы */}
