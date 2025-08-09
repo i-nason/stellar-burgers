@@ -151,5 +151,3 @@ describe('Store initialization', () => {
     });
   });
 });
-
-

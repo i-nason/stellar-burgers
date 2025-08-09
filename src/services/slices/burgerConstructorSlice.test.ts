@@ -9,6 +9,13 @@ import burgerConstructorReducer, {
 } from './burgerConstructorSlice';
 import { TIngredient, TConstructorIngredient } from '../../utils/types';
 
+type BurgerConstructorState = {
+  bun: TConstructorIngredient | null;
+  ingredients: TConstructorIngredient[];
+  orderRequest: boolean;
+  orderModalData: any;
+  orderError: string | null;
+};
 
 const mockBun: TIngredient = {
   _id: '60666c42cc7b410027a1a9b1',
@@ -66,7 +73,7 @@ const mockMain2: TIngredient = {
   image_large: 'https://code.s3.yandex.net/react/code/meat-02-large.png'
 };
 
-const initialState = {
+const initialState: BurgerConstructorState = {
   bun: null,
   ingredients: [],
   orderRequest: false,
@@ -85,38 +92,57 @@ describe('burgerConstructorSlice', () => {
 
   describe('addIngredient action', () => {
     test('should add bun ingredient and replace existing bun', () => {
-      const state = burgerConstructorReducer(initialState, addIngredient(mockBun));
-      
-      expect(state.bun).toEqual(expect.objectContaining({
-        ...mockBun,
-        id: expect.any(String)
-      }));
-      expect(state.ingredients).toEqual([]);
-      
+      const state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockBun)
+      );
 
-      const newBun: TIngredient = { ...mockBun, _id: 'new-bun-id', name: 'Новая булка' };
-      const stateWithNewBun = burgerConstructorReducer(state, addIngredient(newBun));
-      
+      expect(state.bun).toEqual(
+        expect.objectContaining({
+          ...mockBun,
+          id: expect.any(String)
+        })
+      );
+      expect(state.ingredients).toEqual([]);
+
+      const newBun: TIngredient = {
+        ...mockBun,
+        _id: 'new-bun-id',
+        name: 'Новая булка'
+      };
+      const stateWithNewBun = burgerConstructorReducer(
+        state,
+        addIngredient(newBun)
+      );
+
       expect(stateWithNewBun.bun?.name).toBe('Новая булка');
       expect(stateWithNewBun.bun?._id).toBe('new-bun-id');
     });
 
     test('should add non-bun ingredient to ingredients array', () => {
-      const state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
-      
+      const state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
+
       expect(state.bun).toBeNull();
       expect(state.ingredients).toHaveLength(1);
-      expect(state.ingredients[0]).toEqual(expect.objectContaining({
-        ...mockSauce,
-        id: expect.any(String)
-      }));
+      expect(state.ingredients[0]).toEqual(
+        expect.objectContaining({
+          ...mockSauce,
+          id: expect.any(String)
+        })
+      );
     });
 
     test('should add multiple ingredients to array', () => {
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockMain));
       state = burgerConstructorReducer(state, addIngredient(mockMain2));
-      
+
       expect(state.ingredients).toHaveLength(3);
       expect(state.ingredients[0].name).toBe(mockSauce.name);
       expect(state.ingredients[1].name).toBe(mockMain.name);
@@ -124,9 +150,12 @@ describe('burgerConstructorSlice', () => {
     });
 
     test('should generate unique id for each ingredient', () => {
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockSauce));
-      
+
       expect(state.ingredients).toHaveLength(2);
       expect(state.ingredients[0].id).not.toBe(state.ingredients[1].id);
       expect(state.ingredients[0]._id).toBe(state.ingredients[1]._id);
@@ -135,50 +164,64 @@ describe('burgerConstructorSlice', () => {
 
   describe('removeIngredient action', () => {
     test('should remove ingredient by id', () => {
-
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockMain));
       state = burgerConstructorReducer(state, addIngredient(mockMain2));
-      
+
       const ingredientToRemove = state.ingredients[1];
       const newState = burgerConstructorReducer(
         state,
         removeIngredient(ingredientToRemove.id)
       );
-      
+
       expect(newState.ingredients).toHaveLength(2);
-      expect(newState.ingredients.find(item => item.id === ingredientToRemove.id)).toBeUndefined();
+      expect(
+        newState.ingredients.find((item) => item.id === ingredientToRemove.id)
+      ).toBeUndefined();
       expect(newState.ingredients[0].name).toBe(mockSauce.name);
       expect(newState.ingredients[1].name).toBe(mockMain2.name);
     });
 
     test('should not change state when removing non-existent ingredient', () => {
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
-      const newState = burgerConstructorReducer(state, removeIngredient('non-existent-id'));
-      
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
+      const newState = burgerConstructorReducer(
+        state,
+        removeIngredient('non-existent-id')
+      );
+
       expect(newState.ingredients).toEqual(state.ingredients);
     });
 
     test('should handle removing from empty ingredients array', () => {
-      const newState = burgerConstructorReducer(initialState, removeIngredient('any-id'));
-      
+      const newState = burgerConstructorReducer(
+        initialState,
+        removeIngredient('any-id')
+      );
+
       expect(newState.ingredients).toEqual([]);
     });
   });
 
   describe('moveIngredient action', () => {
     test('should move ingredient from one position to another', () => {
-
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockMain));
       state = burgerConstructorReducer(state, addIngredient(mockMain2));
-      
 
       const newState = burgerConstructorReducer(
         state,
         moveIngredient({ from: 0, to: 2 })
       );
-      
+
       expect(newState.ingredients).toHaveLength(3);
       expect(newState.ingredients[0].name).toBe(mockMain.name);
       expect(newState.ingredients[1].name).toBe(mockMain2.name);
@@ -186,34 +229,37 @@ describe('burgerConstructorSlice', () => {
     });
 
     test('should move ingredient from end to beginning', () => {
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockMain));
       state = burgerConstructorReducer(state, addIngredient(mockMain2));
-      
 
       const newState = burgerConstructorReducer(
         state,
         moveIngredient({ from: 2, to: 0 })
       );
-      
+
       expect(newState.ingredients[0].name).toBe(mockMain2.name);
       expect(newState.ingredients[1].name).toBe(mockSauce.name);
       expect(newState.ingredients[2].name).toBe(mockMain.name);
     });
 
     test('should move ingredient within middle positions', () => {
-
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockMain));
       state = burgerConstructorReducer(state, addIngredient(mockMain2));
       state = burgerConstructorReducer(state, addIngredient(mockSauce));
-      
 
       const newState = burgerConstructorReducer(
         state,
         moveIngredient({ from: 1, to: 2 })
       );
-      
+
       expect(newState.ingredients[0].name).toBe(mockSauce.name);
       expect(newState.ingredients[1].name).toBe(mockMain2.name);
       expect(newState.ingredients[2].name).toBe(mockMain.name);
@@ -221,25 +267,35 @@ describe('burgerConstructorSlice', () => {
     });
 
     test('should handle moving to the same position', () => {
-      let state = burgerConstructorReducer(initialState, addIngredient(mockSauce));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockSauce)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockMain));
-      
-      const originalOrder = state.ingredients.map(item => item.name);
-      const newState = burgerConstructorReducer(state, moveIngredient({ from: 1, to: 1 }));
-      
-      expect(newState.ingredients.map(item => item.name)).toEqual(originalOrder);
+
+      const originalOrder = state.ingredients.map((item) => item.name);
+      const newState = burgerConstructorReducer(
+        state,
+        moveIngredient({ from: 1, to: 1 })
+      );
+
+      expect(newState.ingredients.map((item) => item.name)).toEqual(
+        originalOrder
+      );
     });
   });
 
   describe('resetConstructor action', () => {
     test('should reset constructor to initial state', () => {
-
-      let state = burgerConstructorReducer(initialState, addIngredient(mockBun));
+      let state = burgerConstructorReducer(
+        initialState,
+        addIngredient(mockBun)
+      );
       state = burgerConstructorReducer(state, addIngredient(mockSauce));
       state = burgerConstructorReducer(state, addIngredient(mockMain));
-      
+
       const newState = burgerConstructorReducer(state, resetConstructor());
-      
+
       expect(newState.bun).toBeNull();
       expect(newState.ingredients).toEqual([]);
 
@@ -263,12 +319,12 @@ describe('burgerConstructorSlice', () => {
           ingredients: ['ingredient1', 'ingredient2']
         }
       };
-      
+
       const newState = burgerConstructorReducer(
         stateWithOrderData,
         clearOrderModalData()
       );
-      
+
       expect(newState.orderModalData).toBeNull();
 
       expect(newState.bun).toBe(stateWithOrderData.bun);
@@ -388,7 +444,7 @@ describe('burgerConstructorSlice', () => {
 
   describe('orderBurger state transitions', () => {
     test('should handle complete order cycle: pending -> fulfilled', () => {
-      let state = initialState;
+      let state: BurgerConstructorState = initialState;
 
       const pendingAction = { type: orderBurger.pending.type };
       state = burgerConstructorReducer(state, pendingAction);
@@ -417,7 +473,7 @@ describe('burgerConstructorSlice', () => {
     });
 
     test('should handle complete order cycle: pending -> rejected', () => {
-      let state = initialState;
+      let state: BurgerConstructorState = initialState;
 
       const pendingAction = { type: orderBurger.pending.type };
       state = burgerConstructorReducer(state, pendingAction);
@@ -435,4 +491,3 @@ describe('burgerConstructorSlice', () => {
     });
   });
 });
-

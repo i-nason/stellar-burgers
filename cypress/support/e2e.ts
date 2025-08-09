@@ -13,6 +13,6 @@
 // https://on.cypress.io/configuration
 // ***********************************************************
 
-// Import commands.js using ES2015 syntax:
+/// <reference types="./commands.d.ts" />
+
 import './commands'
-import './test-helpers'

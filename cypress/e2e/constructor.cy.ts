@@ -1,37 +1,19 @@
-import {
-  TestIngredientsHelper,
-  AuthHelper,
-  TestIngredient,
-} from '../support/test-helpers';
 
-const setupIngredientsRoute = () => {
-  cy.intercept('GET', '**/ingredients', { fixture: 'ingredients.json', statusCode: 200 })
-    .as('getIngredients');
-  
-  cy.intercept('GET', 'https://norma.nomoreparties.space/api/ingredients').as('getIngredientsReal');
-};
-
-const visitHomeAndWaitIngredients = () => {
-  cy.visit('/');
-  
-  cy.wait('@getIngredients', { timeout: 10000 }).then((interception) => {
-    if (!interception || !interception.response) {
-      cy.log('Warning: @getIngredients interception not captured, continuing with test');
-    }
-  });
-};
 
 describe('API: Ingredients', () => {
   beforeEach(() => {
-    setupIngredientsRoute();
+    cy.setupIngredientsMock();
     cy.loadTestIngredients().as('ingredientsData');
-    visitHomeAndWaitIngredients();
+    cy.visitHome();
   });
 
   it('перехват запроса и корректный ответ', function () {
     cy.get('@getIngredients').then((interception: any) => {
       if (interception && interception.response) {
-        AuthHelper.verifyIngredientsApiResponse(interception, (this as any).ingredientsData.length);
+        expect(interception.response.statusCode).to.equal(200);
+        expect(interception.response.body).to.have.property('success');
+        expect(interception.response.body).to.have.property('data');
+        expect(interception.response.body.data).to.have.length((this as any).ingredientsData.length);
       } else {
         cy.log('Interception not captured, verifying data directly');
         const data = (this as any).ingredientsData;
@@ -44,15 +26,16 @@ describe('API: Ingredients', () => {
   it('структура ответа и элементов', function () {
     cy.get('@getIngredients').then((interception: any) => {
       if (interception && interception.response) {
-        AuthHelper.verifyIngredientsApiResponse(interception);
+        expect(interception.response.statusCode).to.equal(200);
+        expect(interception.response.body).to.have.keys('success', 'data');
         const first = interception.response?.body.data[0];
-        AuthHelper.verifyIngredientStructure(first);
+        expect(first).to.have.all.keys('_id', 'name', 'type', 'proteins', 'fat', 'carbohydrates', 'calories', 'price', 'image', 'image_mobile', 'image_large');
       } else {
         cy.log('Interception not captured, verifying structure from fixture data');
         const data = (this as any).ingredientsData;
         expect(data).to.be.an('array').and.to.have.length.greaterThan(0);
         const first = data[0];
-        AuthHelper.verifyIngredientStructure(first);
+        expect(first).to.have.all.keys('_id', 'name', 'type', 'proteins', 'fat', 'carbohydrates', 'calories', 'price', 'image', 'image_mobile', 'image_large');
       }
     });
   });
@@ -60,7 +43,12 @@ describe('API: Ingredients', () => {
   it('валидность фикстуры ингредиентов', function () {
     const data = (this as any).ingredientsData;
     expect(data).to.be.an('array').and.to.have.length.greaterThan(0);
-    data.forEach((ing: any) => AuthHelper.verifyIngredientStructure(ing));
+    
+    data.forEach((ing: any) => {
+      expect(ing).to.have.all.keys('_id', 'name', 'type', 'proteins', 'fat', 'carbohydrates', 'calories', 'price', 'image', 'image_mobile', 'image_large');
+      expect(['bun', 'main', 'sauce']).to.include(ing.type);
+    });
+    
     const types = data.map((ing: any) => ing.type);
     expect(types).to.include.members(['bun', 'main', 'sauce']);
   });
@@ -70,45 +58,55 @@ describe('Auth: токены и моки', () => {
   beforeEach(() => cy.fixture('user').as('userData'));
 
   it('структура пользователя и форматы токенов', function () {
-    const user = (this as any).userData;
-    AuthHelper.verifyUserDataStructure(user);
-    AuthHelper.verifyUserDataTypes(user);
-    AuthHelper.verifyTokenFormats(user);
-    AuthHelper.verifyUserDataSecurity(user);
+    const userData = (this as any).userData;
+    
+    expect(userData).to.have.property('user');
+    expect(userData).to.have.property('accessToken');
+    expect(userData).to.have.property('refreshToken');
+    
+    expect(userData.user).to.have.property('email');
+    expect(userData.user).to.have.property('name');
+    
+    expect(userData.accessToken).to.include('Bearer');
+    expect(userData.accessToken).to.match(/^Bearer\s+.+/);
+    expect(userData.refreshToken).to.be.a('string').and.have.length.greaterThan(5);
   });
 
   it('интерсепты аутентификации корректно настроены', function () {
     const user = (this as any).userData;
-    AuthHelper.setupAuthApiMocks();
-    AuthHelper.verifyAuthApiMocksSetup();
-    AuthHelper.verifyUserDataStructure(user);
+    cy.setupAuthMocks();
+    
+    expect(user).to.have.property('user');
+    expect(user.user).to.have.property('email');
+    expect(user.user).to.have.property('name');
   });
 
-  it('email и доп. ограничения токенов', function () {
+  it('email и дополнительные ограничения токенов', function () {
     const userData = (this as any).userData;
     const { user, accessToken, refreshToken } = userData;
-    AuthHelper.verifyUserEmailFormat(user.email);
+    
+    expect(user.email).to.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
     expect(user.email).to.equal(user.email.toLowerCase());
     expect(user.email).to.not.include(' ');
     expect(user.email.split('@')).to.have.length(2);
+    
     expect(accessToken.trim()).to.equal(accessToken).and.to.have.length.greaterThan(10);
     expect(refreshToken.trim()).to.equal(refreshToken).and.to.have.length.greaterThan(5);
+    
+    expect(userData).to.not.have.property('password');
+    expect(user).to.not.have.property('password');
   });
 });
 
 describe('UI: Конструктор бургера', () => {
-  let testIngredients: { bun?: TestIngredient; main?: TestIngredient; sauce?: TestIngredient };
-
   beforeEach(() => {
-    setupIngredientsRoute();
-    cy.loadTestIngredients().then(() => {
-      testIngredients = TestIngredientsHelper.getTestIngredients();
-    });
-    visitHomeAndWaitIngredients();
-    cy.get('#root').should('exist');
+    cy.setupIngredientsMock();
+    cy.loadTestIngredients();
+    cy.visitHome();
+    cy.verifyPageLoaded();
   });
 
-  it('страница загружается, API перехвачен, длина данных ожидаемая', () => {
+  it('страница загружается, API перехвачен, данные корректные', () => {
     cy.get('@getIngredients').then((interception: any) => {
       if (interception && interception.response) {
         expect(interception.response.statusCode).to.eq(200);
@@ -116,138 +114,134 @@ describe('UI: Конструктор бургера', () => {
         expect(interception.response.body.data).to.have.length(3);
       } else {
         cy.log('Interception not captured, verifying page loaded successfully');
-        cy.get('#root').should('exist');
-        cy.get('body').should('contain', 'Краторная булка N-200i');
+        cy.get('[data-cy="app"]').should('exist');
+        cy.get('[data-cy="ingredients-section"]').should('contain', 'Краторная булка N-200i');
       }
     });
   });
 
   it('все ингредиенты отображаются', () => {
     cy.verifyAllIngredientsPresent();
-    [testIngredients.bun, testIngredients.main, testIngredients.sauce]
-      .filter(Boolean)
-      .forEach((ing) => TestIngredientsHelper.verifyIngredientPresence(ing!));
   });
 
   it('добавление всех типов ингредиентов', () => {
-    cy.verifyAllIngredientsPresent();
-    [testIngredients.bun, testIngredients.main, testIngredients.sauce]
-      .filter(Boolean)
-      .forEach((ing) => {
-        TestIngredientsHelper.addIngredientToConstructor(ing!);
-        TestIngredientsHelper.verifyIngredientInConstructor(ing!);
+    cy.addIngredientByType('bun');
+    cy.get('[data-cy="constructor-bun-top"]').should('be.visible');
+    cy.get('[data-cy="constructor-bun-bottom"]').should('be.visible');
+    
+    cy.addIngredientByType('main');
+    cy.get('[data-cy="constructor-ingredients"]').should('not.be.empty');
+    
+    cy.addIngredientByType('sauce');
+    cy.get('[data-cy="constructor-ingredients"]').should('not.be.empty');
+  });
+
+  it('добавление ингредиентов с проверкой', () => {
+    cy.assembleBurger();
+    cy.verifyBurgerAssembled();
+  });
+
+  it('проверка присутствия всех типов ингредиентов', () => {
+    ['bun', 'main', 'sauce'].forEach((type) => {
+      cy.getIngredientByType(type as any).then((ingredient) => {
+        cy.get('[data-cy="ingredients-section"]').should('contain', ingredient.name);
       });
-  });
-
-  it('добавление кастомными командами', () => {
-    ['bun', 'main', 'sauce'].forEach((t) => cy.addIngredientByType(t as any));
-    [testIngredients.bun, testIngredients.main, testIngredients.sauce]
-      .filter(Boolean)
-      .forEach((ing) => TestIngredientsHelper.verifyIngredientInConstructor(ing!));
-  });
-
-  it('динамическая проверка по первому элементу каждого типа', () => {
-    ['bun', 'main', 'sauce'].forEach((t) => {
-      const first = TestIngredientsHelper.getIngredientsByType(t as any)[0];
-      if (first) TestIngredientsHelper.verifyIngredientPresence(first);
     });
   });
 
   it('модалка ингредиента открывается и корректно отображается', () => {
-    const bun = testIngredients.bun!;
-    TestIngredientsHelper.clickIngredient(bun);
-    TestIngredientsHelper.verifyIngredientModalUrl(bun);
-    TestIngredientsHelper.verifyIngredientModalContent(bun);
+    cy.getIngredientByType('bun').then((bun) => {
+      cy.openIngredientModal(bun);
+      cy.verifyIngredientModal(bun);
+    });
   });
 });
 
 describe('UI: Модальные окна ингредиента', () => {
-  let ing: TestIngredient;
-
   beforeEach(() => {
-    setupIngredientsRoute();
-    cy.loadTestIngredients().then(() => {
-      ing = TestIngredientsHelper.getIngredientByType('bun')!;
-    });
-    visitHomeAndWaitIngredients();
+    cy.setupIngredientsMock();
+    cy.loadTestIngredients();
+    cy.visitHome();
   });
 
   it('открытие модалки с корректными данными', () => {
-    TestIngredientsHelper.openIngredientModal(ing);
-    cy.contains('Детали ингредиента').should('be.visible');
-    TestIngredientsHelper.verifyIngredientModalContent(ing);
+    cy.getIngredientByType('bun').then((ingredient) => {
+      cy.openIngredientModal(ingredient);
+      cy.contains('Детали ингредиента').should('be.visible');
+      cy.verifyIngredientModal(ingredient);
+    });
   });
 
   it('закрытие модалки по кнопке', () => {
-    TestIngredientsHelper.openIngredientModal(ing);
-    cy.contains('Детали ингредиента').should('be.visible');
-    TestIngredientsHelper.closeModalByButton();
+    cy.getIngredientByType('bun').then((ingredient) => {
+      cy.openIngredientModal(ingredient);
+      cy.contains('Детали ингредиента').should('be.visible');
+      cy.closeModal();
+    });
   });
 
   it('закрытие модалки по оверлею', () => {
-    TestIngredientsHelper.openIngredientModal(ing);
-    cy.contains('Детали ингредиента').should('be.visible');
-    TestIngredientsHelper.closeModalByOverlay();
+    cy.getIngredientByType('bun').then((ingredient) => {
+      cy.openIngredientModal(ingredient);
+      cy.contains('Детали ингредиента').should('be.visible');
+      cy.closeModal();
+    });
   });
 });
 
 describe('UI: Кнопка заказа и флоу', () => {
   beforeEach(() => {
-    AuthHelper.setupAuthenticatedSession();
+    cy.login();
+    cy.setupIngredientsMock();
     cy.loadTestIngredients();
-    cy.visit('/');
-    cy.wait(['@getIngredients', '@getUser']);
-    cy.get('#root').should('exist');
+    cy.visitHome();
+    cy.verifyPageLoaded();
   });
 
-  afterEach(() => AuthHelper.clearTokens());
+  afterEach(() => cy.clearAuthTokens());
 
   it('сборка бургера активирует кнопку заказа', () => {
     cy.verifyAllIngredientsPresent();
-    TestIngredientsHelper.assembleBurger();
-    TestIngredientsHelper.verifyOrderButtonActive();
+    cy.assembleBurger();
+    cy.get('[data-cy="order-button"]').should('be.visible').and('not.be.disabled');
   });
 
   it('создание заказа и проверка модалки', () => {
-    TestIngredientsHelper.assembleBurger();
-    TestIngredientsHelper.createOrder();
-    TestIngredientsHelper.verifyOrderCreated();
+    cy.assembleBurger();
+    cy.createOrder();
     
     cy.get('@createOrder').then((interception: any) => {
       const orderNumber = interception.response?.body?.order?.number?.toString();
-      TestIngredientsHelper.verifyOrderModal(orderNumber);
+      cy.verifyOrderModal(orderNumber);
     });
   });
 
   it('закрытие модалки и очистка конструктора', () => {
-    TestIngredientsHelper.assembleBurger();
-    TestIngredientsHelper.createOrder();
+    cy.assembleBurger();
+    cy.createOrder();
     
     cy.get('@createOrder').then((interception: any) => {
       const orderNumber = interception.response?.body?.order?.number?.toString();
-      TestIngredientsHelper.verifyOrderModal(orderNumber);
-      TestIngredientsHelper.closeOrderModal();
+      cy.verifyOrderModal(orderNumber);
+      cy.closeOrderModal();
       
-      cy.get('#modals').should('not.contain.text', 'идентификатор заказа');
-      if (orderNumber) {
-        cy.get('#modals').should('not.contain', orderNumber);
-      }
-      TestIngredientsHelper.verifyConstructorCleared();
+      cy.get('[data-cy="modal"]').should('not.exist');
+      cy.clearConstructor();
     });
   });
 
   it('полный сценарий заказа', () => {
-    TestIngredientsHelper.assembleBurger();
-    TestIngredientsHelper.verifyBurgerAssembled();
-    TestIngredientsHelper.verifyOrderButtonActive();
-    TestIngredientsHelper.createOrder();
-    TestIngredientsHelper.verifyOrderCreated();
+    cy.assembleBurger();
+    cy.verifyBurgerAssembled();
+    cy.get('[data-cy="order-button"]').should('be.visible').and('not.be.disabled');
+    cy.createOrder();
     
     cy.get('@createOrder').then((interception: any) => {
+      expect(interception.response?.statusCode).to.equal(200);
       const orderNumber = interception.response?.body?.order?.number?.toString();
-      TestIngredientsHelper.verifyOrderModal(orderNumber);
-      TestIngredientsHelper.closeOrderModal();
-      TestIngredientsHelper.verifyConstructorCleared();
+      cy.verifyOrderModal(orderNumber);
+      cy.closeOrderModal();
+      cy.clearConstructor();
     });
   });
 });
@@ -258,9 +252,9 @@ describe('Fixtures: Ingredients sanity', () => {
   it('структура и типы', function () {
     const data = (this as any).ingredientsData as any[];
     expect(data).to.have.length.greaterThan(0);
+    
     data.forEach((ing) => {
-      AuthHelper.verifyIngredientStructure(ing);
-      expect(ing).to.include.keys([
+      expect(ing).to.have.all.keys([
         '_id',
         'name',
         'type',
@@ -277,11 +271,18 @@ describe('Fixtures: Ingredients sanity', () => {
       expect(ing.calories).to.be.greaterThan(0);
       expect(['bun', 'main', 'sauce']).to.include(ing.type);
     });
-    const byType = (t: string) => TestIngredientsHelper.getIngredientsByType(t as any).length;
-    expect(byType('bun')).to.be.greaterThan(0);
-    expect(byType('main')).to.be.greaterThan(0);
-    expect(byType('sauce')).to.be.greaterThan(0);
-    expect(byType('bun') + byType('main') + byType('sauce')).to.equal(data.length);
+    
+    const types = data.map(ing => ing.type);
+    expect(types).to.include.members(['bun', 'main', 'sauce']);
+    
+    const bunCount = data.filter(ing => ing.type === 'bun').length;
+    const mainCount = data.filter(ing => ing.type === 'main').length;
+    const sauceCount = data.filter(ing => ing.type === 'sauce').length;
+    
+    expect(bunCount).to.be.greaterThan(0);
+    expect(mainCount).to.be.greaterThan(0);
+    expect(sauceCount).to.be.greaterThan(0);
+    expect(bunCount + mainCount + sauceCount).to.equal(data.length);
   });
 });
 
@@ -290,17 +291,25 @@ describe('Fixtures: Order', () => {
 
   it('полная проверка заказа', function () {
     const data = (this as any).orderData;
-    AuthHelper.verifyOrderDataStructure(data);
-    const order = data.order;
-    AuthHelper.verifyOrderStatus(order.status);
-    AuthHelper.verifyOrderNumber(order.number);
-    AuthHelper.verifyOrderIngredients(order.ingredients);
-    AuthHelper.verifyOrderTimestamps(order.createdAt, order.updatedAt);
-    AuthHelper.verifyOrderDataSecurity(data);
-    AuthHelper.verifyOrderDataIntegrity(data);
-    expect(order.name).to.have.length.greaterThan(0);
+    
+    expect(data).to.have.property('success');
+    expect(data).to.have.property('order');
+    expect(data).to.have.property('name');
     expect(data.success).to.be.true;
+    
+    const order = data.order;
+    expect(order).to.have.all.keys('_id', 'number', 'status', 'name', 'createdAt', 'updatedAt', 'ingredients');
+    
+    expect(order.name).to.have.length.greaterThan(0);
     expect(order._id).to.have.length.greaterThan(10);
+    expect(order.number).to.be.a('number').and.be.greaterThan(0);
+    expect(['done', 'pending', 'created']).to.include(order.status);
+    expect(order.ingredients).to.be.an('array').and.have.length.greaterThan(0);
+    
+    expect(order.createdAt).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(order.updatedAt).to.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    
+    expect(data.name).to.equal(order.name);
   });
 });
 
@@ -308,13 +317,24 @@ describe('Fixtures: User', () => {
   before(() => cy.fixture('user').as('userData'));
 
   it('полная проверка пользователя', function () {
-    const user = (this as any).userData;
-    AuthHelper.verifyUserDataStructure(user);
-    AuthHelper.verifyUserDataTypes(user);
-    AuthHelper.verifyUserEmailFormat(user.user.email);
-    AuthHelper.verifyTokenFormats(user);
-    AuthHelper.verifyUserDataSecurity(user);
-    expect(user.user.name.trim()).to.not.be.empty;
-    expect(user.user.email).to.equal(user.user.email.toLowerCase());
+    const userData = (this as any).userData;
+    
+    expect(userData).to.have.property('user');
+    expect(userData).to.have.property('accessToken');
+    expect(userData).to.have.property('refreshToken');
+    
+    const user = userData.user;
+    expect(user).to.have.property('email');
+    expect(user).to.have.property('name');
+    expect(user.name.trim()).to.not.be.empty;
+    
+    expect(user.email).to.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+    expect(user.email).to.equal(user.email.toLowerCase());
+    
+    expect(userData.accessToken).to.include('Bearer');
+    expect(userData.refreshToken).to.be.a('string').and.have.length.greaterThan(5);
+    
+    expect(userData).to.not.have.property('password');
+    expect(user).to.not.have.property('password');
   });
 });

@@ -5,10 +5,12 @@
     "noEmit": true,
     // явно указываем что будем использовать типы из cypress
     // чтобы избежать пересечения с типами jest, если мы его используем
-    "types": ["cypress"]
+    "types": ["cypress"],
+    "typeRoots": ["../node_modules/@types", "./support"]
   },
   "include": [
     "../node_modules/cypress",
-    "./**/*.ts"
+    "./**/*.ts",
+    "./support/commands.ts"
   ]
 } 
